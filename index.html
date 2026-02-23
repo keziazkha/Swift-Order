@@ -1,1 +1,396 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Swift Order - Master Chef</title>
+    <style>
+        :root {
+            --pink-primary: #ff85a2;
+            --pink-light: #ffb3c6;
+            --blue-primary: #8ecae6;
+            --blue-dark: #219ebc;
+            --white: #ffffff;
+            --yellow: #ffb703;
+        }
 
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            background-color: var(--pink-light);
+            background-image: radial-gradient(var(--white) 10%, transparent 10%), radial-gradient(var(--white) 10%, transparent 10%);
+            background-size: 30px 30px;
+            background-position: 0 0, 15px 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 95vw;
+            max-width: 450px;
+            height: 96vh;
+            max-height: 850px;
+            background: var(--white);
+            border: 6px solid var(--blue-primary);
+            border-radius: 25px;
+            box-shadow: 0 8px 0 var(--blue-dark);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* UI Header */
+        #ui-layer {
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--blue-primary);
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 5px 12px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Area Permainan Utama */
+        #game-screen {
+            flex: 1; /* Mengambil sisa ruang */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-evenly; /* Menyebar elemen secara vertikal */
+            padding: 10px;
+            min-height: 0; /* Penting untuk flexbox */
+        }
+
+        .order-bubble {
+            background: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 3px solid var(--pink-primary);
+            font-weight: bold;
+            color: var(--pink-primary);
+            font-size: 1rem;
+            box-shadow: 0 4px 0 var(--pink-light);
+            margin-bottom: 5px;
+        }
+
+        /* Kotak Masak - DIPERBAIKI: Tidak akan memakan ruang berlebih */
+        .cooking-station {
+            width: 100%;
+            flex: 0 1 240px; /* Ukuran fleksibel dengan batas maksimum */
+            background: #f0f0f0;
+            border-radius: 25px;
+            border: 4px solid var(--blue-primary);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden; /* Makanan tidak akan keluar garis */
+        }
+
+        .food-item {
+            font-size: clamp(60px, 20vw, 100px); /* Ukuran responsif */
+            transition: transform 0.3s;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        #msg-box {
+            position: absolute;
+            top: 10px;
+            background: var(--blue-dark);
+            color: white;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            opacity: 0;
+            transition: 0.3s;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .show-msg { opacity: 1 !important; transform: translateY(5px); }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 60%;
+            height: 12px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            display: none;
+            margin-top: 10px;
+        }
+
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--yellow);
+        }
+
+        /* Pantry (Tombol Menu) - DIPERBAIKI: Tetap di bawah dan tidak terpotong */
+        #pantry {
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            background: #fdf2f5;
+            border-top: 4px solid var(--pink-primary);
+            flex-shrink: 0; /* Tidak boleh mengecil */
+        }
+
+        .pantry-item {
+            background: white;
+            border: 2px solid var(--pink-primary);
+            border-radius: 15px;
+            padding: 10px 2px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 3px 0 var(--pink-light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .pantry-item:active { transform: translateY(2px); box-shadow: none; }
+
+        .pantry-emoji { font-size: 24px; margin-bottom: 2px; }
+        .pantry-label { font-size: 8px; font-weight: bold; color: var(--pink-primary); text-transform: uppercase; }
+
+        /* Overlay Beranda */
+        #overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--pink-primary);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .home-chef-icon { font-size: 70px; margin-bottom: 10px; animation: bounce 2s infinite; }
+        .btn {
+            background: var(--yellow);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #cc9200;
+            margin-top: 20px;
+            font-weight: 900;
+        }
+
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(3deg); } 75% { transform: rotate(-3deg); } }
+        .cooking { animation: shake 0.2s infinite; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui-layer">
+            <div class="stat-box">⭐ Lv <span id="level">1</span></div>
+            <div class="stat-box">💰 <span id="score">0</span>/<span id="target">50</span></div>
+            <div class="stat-box">⏰ <span id="timer">45</span>s</div>
+        </div>
+
+        <div id="game-screen">
+            <div id="order-box" class="order-bubble" style="display: none;">
+                Pesanan: <span id="target-food">...</span>
+            </div>
+
+            <div class="cooking-station">
+                <div id="msg-box">Sajikan Sekarang! 👆</div>
+                <div id="current-food" class="food-item">👨‍🍳</div>
+                <div class="progress-container" id="progress-wrapper">
+                    <div id="progress-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="pantry">
+            <div class="pantry-item" onclick="prepareFood('🍔', 'Burger', 1500)">
+                <span class="pantry-emoji">🍔</span><span class="pantry-label">Burger</span>
+            </div>
+            <div class="pantry-item" onclick="prepareFood('🍕', 'Pizza', 2500)">
+                <span class="pantry-emoji">🍕</span><span class="pantry-label">Pizza</span>
+            </div>
+            <div class="pantry-item" onclick="prepareFood('🍣', 'Sushi', 1000)">
+                <span class="pantry-emoji">🍣</span><span class="pantry-label">Sushi</span>
+            </div>
+            <div class="pantry-item" onclick="prepareFood('🍜', 'Ramen', 3000)">
+                <span class="pantry-emoji">🍜</span><span class="pantry-label">Ramen</span>
+            </div>
+        </div>
+
+        <div id="overlay">
+            <div class="home-chef-icon" id="overlay-emoji">👩‍🍳</div>
+            <h1 id="overlay-title">Swift Order</h1>
+            <p id="overlay-desc">Masak secepat kilat untuk mencapai target!</p>
+            <button class="btn" onclick="startGame()">MULAI MASAK</button>
+        </div>
+    </div>
+
+    <script>
+        // Inisialisasi Audio
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        function playTone(f, t, d) {
+            try {
+                if(!audioCtx) audioCtx = new AudioCtx();
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                o.type = t; o.frequency.value = f;
+                g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(); o.stop(audioCtx.currentTime + d);
+            } catch(e){}
+        }
+
+        let score = 0, level = 1, targetScore = 50, timeLeft = 45;
+        let isGameRunning = false, isCooking = false, isDone = false;
+        let currentOrder = null, timerInterval;
+
+        const menu = [
+            { emoji: '🍔', name: 'Burger' },
+            { emoji: '🍕', name: 'Pizza' },
+            { emoji: '🍣', name: 'Sushi' },
+            { emoji: '🍜', name: 'Ramen' }
+        ];
+
+        function startGame() {
+            if(level > 5) { level = 1; score = 0; targetScore = 50; }
+            if(level === 1) score = 0;
+            
+            timeLeft = 45;
+            document.getElementById('level').innerText = level;
+            document.getElementById('target').innerText = targetScore;
+            document.getElementById('score').innerText = score;
+            document.getElementById('overlay').style.display = 'none';
+            
+            isGameRunning = true;
+            resetKitchen();
+            newOrder();
+            
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerText = timeLeft;
+                if(timeLeft <= 0) finishLevel();
+            }, 1000);
+        }
+
+        function newOrder() {
+            currentOrder = menu[Math.floor(Math.random() * menu.length)];
+            document.getElementById('target-food').innerText = currentOrder.emoji + " " + currentOrder.name;
+            document.getElementById('order-box').style.display = 'block';
+        }
+
+        function prepareFood(emoji, name, time) {
+            if(!isGameRunning || isCooking || isDone) return;
+            isCooking = true;
+            const food = document.getElementById('current-food');
+            const wrapper = document.getElementById('progress-wrapper');
+            const bar = document.getElementById('progress-bar');
+            
+            food.innerText = '🥣';
+            food.classList.add('cooking');
+            wrapper.style.display = 'block';
+            
+            let start = Date.now();
+            let anim = setInterval(() => {
+                let diff = Date.now() - start;
+                let p = (diff / time) * 100;
+                bar.style.width = p + '%';
+                if(diff >= time) {
+                    clearInterval(anim);
+                    isCooking = false; isDone = true;
+                    food.innerText = emoji;
+                    food.classList.remove('cooking');
+                    wrapper.style.display = 'none';
+                    document.getElementById('msg-box').classList.add('show-msg');
+                    playTone(600, 'sine', 0.2);
+                }
+            }, 50);
+        }
+
+        document.getElementById('current-food').addEventListener('click', () => {
+            if(!isDone || !isGameRunning) return;
+            const food = document.getElementById('current-food');
+            if(food.innerText === currentOrder.emoji) {
+                score += 10;
+                document.getElementById('score').innerText = score;
+                playTone(800, 'sine', 0.1);
+                food.style.transform = 'scale(0)';
+                setTimeout(() => { resetKitchen(); newOrder(); }, 200);
+            } else {
+                playTone(100, 'sawtooth', 0.3);
+                food.innerText = '❌';
+                setTimeout(resetKitchen, 500);
+            }
+        });
+
+        function resetKitchen() {
+            isDone = false;
+            document.getElementById('msg-box').classList.remove('show-msg');
+            const food = document.getElementById('current-food');
+            food.innerText = '🍳';
+            food.style.transform = 'scale(1)';
+            document.getElementById('progress-bar').style.width = '0%';
+        }
+
+        function finishLevel() {
+            isGameRunning = false;
+            clearInterval(timerInterval);
+            const overlay = document.getElementById('overlay');
+            if(score >= targetScore) {
+                if(level === 5) {
+                    document.getElementById('overlay-title').innerText = "TAMAT! 🏆";
+                    document.getElementById('overlay-desc').innerText = "Kamu adalah Legend Chef!";
+                    level = 6;
+                } else {
+                    document.getElementById('overlay-title').innerText = "LEVEL BERHASIL!";
+                    document.getElementById('overlay-desc').innerText = "Skor kamu cukup untuk lanjut.";
+                    level++; targetScore += 50;
+                }
+            } else {
+                document.getElementById('overlay-title').innerText = "WAKTU HABIS!";
+                document.getElementById('overlay-desc').innerText = "Skor tidak cukup. Coba lagi?";
+                level = 1;
+            }
+            overlay.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
